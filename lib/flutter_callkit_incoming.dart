@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/services.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'entities/entities.dart';
 
@@ -103,6 +104,14 @@ class FlutterCallkitIncoming {
     return await _channel.invokeMethod("getDevicePushTokenVoIP");
   }
 
+  /// for check Callkit Mic is Muted.
+  /// On iOS, using Callkit(update call ui).
+  /// On Android, Nothing(only callback event listener).
+  static Future<bool> isMuted(String id) async {
+    return (await _channel.invokeMethod("isMuted", {'id': id})) as bool? ??
+        false;
+  }
+
   static CallEvent? _receiveCallEvent(dynamic data) {
     Event? event;
     Map<String, dynamic> body = {};
@@ -110,6 +119,27 @@ class FlutterCallkitIncoming {
     if (data is Map) {
       event = Event.values.firstWhere((e) => e.name == data['event']);
       body = Map<String, dynamic>.from(data['body']);
+      return CallEvent(body, event);
+    }
+    return null;
+  }
+
+  static Future<CallEvent?> getLatestEvent() async {
+    final last = await _channel.invokeMethod("getLatestEvent");
+
+    if (last == null) {
+      return null;
+    }
+
+    final packageInfo = await PackageInfo.fromPlatform();
+
+    Event? event;
+    Map<String, dynamic> body = {};
+
+    if (last is Map) {
+      event = Event.values.firstWhere(
+          (e) => '${packageInfo.packageName}.${e.name}' == last['event']);
+      body = Map<String, dynamic>.from(last['body']);
       return CallEvent(body, event);
     }
     return null;
